@@ -1,0 +1,50 @@
+/*@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #171717;
+}
+*/
+/*@import "tailwindcss";
+
+:root {
+  --background: #e7fff7;
+  --foreground: hsl(217, 86%, 48%);
+}
+
+/* Page background gradient */
+/*body {
+  background: linear-gradient(135deg, #4a3ef1, lab(85.11% -77.75 57.39), hsl(193, 99%, 52%));
+  font-family: sans-serif;
+  color: var(--foreground);
+}
+*/
+
+@import "tailwindcss";
+
+/* Mobitel Theme Variables */
+:root {
+  --mobitel-blue: #003b8e;
+  --mobitel-green: #007f3e;
+  --mobitel-light: #e9fff7;
+  --text-dark: #002d41;
+}
+
+/* Modern Professional Global Body */
+body {
+  background: linear-gradient(135deg, var(--mobitel-blue), var(--mobitel-green));
+  font-family: "Inter", sans-serif;
+  color: var(--text-dark);
+}
+
+.rdp-day_disabled {
+  color: #cbd5e1 !important; /* slate-300 - very light gray */
+  cursor: not-allowed;
+  background-color: transparent !important;
+}
+
+/* Ensure the available style (green) overrides normal styles */
+.rdp-day_available {
+  /* This matches the tailwind class in modifiersClassNames, ensuring specificity */
+  border-radius: 50%; /* Make them round circles like the selected state */
+}

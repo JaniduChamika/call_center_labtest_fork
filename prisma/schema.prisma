@@ -1,0 +1,218 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This table contains exclusion constraints and requires additional setup for migrations. Visit https://pris.ly/d/exclusion-constraints for more info.
+model appointments {
+  appointment_id            BigInt             @id @default(autoincrement())
+  patient_id                BigInt
+  doctor_id                 BigInt
+  hospital_id               BigInt
+  start_time                DateTime           @db.Timestamptz(6)
+  end_time                  DateTime           @db.Timestamptz(6)
+  status                    appointment_status @default(pending_payment)
+  payment_link              String?
+  payment_confirmation_code String?
+  created_at                DateTime           @default(now()) @db.Timestamptz(6)
+  updated_at                DateTime           @default(now()) @db.Timestamptz(6)
+  public_id                 String?            @unique @db.VarChar(12)
+  doctors                   doctors            @relation(fields: [doctor_id], references: [doctor_id], onDelete: NoAction, onUpdate: NoAction)
+  hospitals                 hospitals          @relation(fields: [hospital_id], references: [hospital_id], onDelete: NoAction, onUpdate: NoAction)
+  patients                  patients           @relation(fields: [patient_id], references: [patient_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([doctor_id, start_time, end_time], map: "idx_appointments_doctor_time")
+}
+
+model doctor_hospital_affiliations {
+  affiliation_id BigInt    @id @default(autoincrement())
+  doctor_id      BigInt
+  hospital_id    BigInt
+  doctors        doctors   @relation(fields: [doctor_id], references: [doctor_id], onDelete: Cascade, onUpdate: NoAction)
+  hospitals      hospitals @relation(fields: [hospital_id], references: [hospital_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([doctor_id, hospital_id])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model doctor_schedules {
+  schedule_id BigInt    @id @default(autoincrement())
+  doctor_id   BigInt
+  hospital_id BigInt
+  day_of_week Int       @db.SmallInt
+  start_time  DateTime  @db.Time(6)
+  end_time    DateTime  @db.Time(6)
+  valid_from  DateTime  @default(dbgenerated("CURRENT_DATE")) @db.Date
+  valid_until DateTime? @db.Date
+  doctors     doctors   @relation(fields: [doctor_id], references: [doctor_id], onDelete: Cascade, onUpdate: NoAction)
+  hospitals   hospitals @relation(fields: [hospital_id], references: [hospital_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([doctor_id, hospital_id, day_of_week, start_time])
+  @@index([doctor_id, day_of_week], map: "idx_schedules_doctor_day")
+}
+
+model doctors {
+  doctor_id                    BigInt                         @id @default(autoincrement())
+  name                         String                         @db.VarChar(255)
+  specialization_id            BigInt?
+  profile_description          String?
+  public_id                    String?                        @unique @db.VarChar(12)
+  consultant_fee               Float?                         @default(0.0)
+  appointments                 appointments[]
+  doctor_hospital_affiliations doctor_hospital_affiliations[]
+  doctor_schedules             doctor_schedules[]
+  specializations              specializations?               @relation(fields: [specialization_id], references: [specialization_id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([name], map: "idx_doctors_name")
+  @@index([specialization_id], map: "idx_doctors_specialization")
+}
+
+model hospitals {
+  hospital_id                  BigInt                         @id @default(autoincrement())
+  name                         String                         @db.VarChar(255)
+  address                      String?
+  city                         String?                        @db.VarChar(100)
+  phone_number                 String?                        @db.VarChar(20)
+  public_id                    String?                        @unique @db.VarChar(12)
+  appointments                 appointments[]
+  doctor_hospital_affiliations doctor_hospital_affiliations[]
+  doctor_schedules             doctor_schedules[]
+
+  @@index([city], map: "idx_hospitals_city")
+}
+
+model illness_specialization_map {
+  illness_id        BigInt           @id @default(autoincrement())
+  illness_name      String           @db.VarChar(100)
+  specialization_id BigInt?
+  specializations   specializations? @relation(fields: [specialization_id], references: [specialization_id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model patients {
+  patient_id   BigInt         @id @default(autoincrement())
+  name         String         @db.VarChar(255)
+  phone_number String         @db.VarChar(20)
+  email        String?        @db.VarChar(255)
+  nic          String?        @unique @db.VarChar(20)
+  appointments appointments[]
+}
+
+model specializations {
+  specialization_id          BigInt                       @id @default(autoincrement())
+  name                       String                       @unique @db.VarChar(100)
+  doctors                    doctors[]
+  illness_specialization_map illness_specialization_map[]
+}
+
+model call_center_user {
+  user_id           Int         @id @default(autoincrement())
+  name              String      @db.VarChar(100)
+  email             String      @unique @db.VarChar(150)
+  password          String      @db.VarChar(255)
+  role              UserRole    @default(CALL_AGENT)
+  status            user_status @default(pending)
+  verification_code String?     @db.VarChar(100)
+  login_attempt     Int         @default(0)
+  created_at        DateTime?   @default(now()) @db.Timestamp(6)
+  last_login_at     DateTime?   @db.Timestamp(6)
+}
+
+enum UserRole {
+  ADMIN
+  CALL_AGENT
+  DOCTOR
+  SUPER_ADMIN
+}
+
+enum appointment_status {
+  pending_payment
+  confirmed
+  cancelled
+  completed
+}
+
+enum user_status {
+  active
+  inactive
+  suspended
+  pending
+}
+// ... existing models (Appointments, Doctors, etc.) ...
+
+// --- LAB MODELS (Ensure these appear only ONCE) ---
+
+model Laboratories {
+  lab_id          String       @id @default(uuid())
+  name            String       
+  city            String       
+  address         String?
+  contact_number  String?
+  email           String?      
+  bookings        LabBooking[] 
+}
+
+model LabTest {
+  id              String       @id @default(uuid())
+  code            String       @unique 
+  name            String      
+  category        LabCategory
+  price           Float
+  description     String?
+  preparation     String?     
+  turnaround_time String?     
+  bookings        LabBooking[]
+  created_at      DateTime     @default(now())
+}
+
+model LabBooking {
+  id              String        @id @default(uuid())
+  public_id       String        @unique @default(cuid())
+  
+  // Patient
+  patient_name    String
+  patient_phone   String
+  patient_age     Int
+  patient_gender  String
+  
+  // Relations
+  lab_test_id     String
+  lab_test        LabTest       @relation(fields: [lab_test_id], references: [id])
+  
+  lab_id          String?       
+  laboratory      Laboratories? @relation(fields: [lab_id], references: [lab_id])
+  
+  // Schedule
+  booking_date    DateTime      @db.Date
+  booking_time    String      
+  status          LabStatus     @default(PENDING)
+  notes           String?
+  created_at      DateTime      @default(now())
+  updated_at      DateTime      @updatedAt
+}
+
+// --- ENUMS (Ensure these appear only ONCE) ---
+
+enum LabCategory {
+  CLINICAL_PATHOLOGY
+  HEMATOLOGY
+  BIOCHEMISTRY
+  MICROBIOLOGY
+  IMMUNOLOGY_SEROLOGY
+  HISTOPATHOLOGY
+  CYTOLOGY
+  BLOOD_BANK
+}
+
+enum LabStatus {
+  PENDING
+  CONFIRMED
+  SAMPLE_COLLECTED
+  COMPLETED
+  CANCELLED
+}
