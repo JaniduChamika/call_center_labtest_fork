@@ -4,7 +4,7 @@ import { Prisma } from '@/generated/prisma';
 import { generatePublicId } from '@/lib/utils';
 import { sendAppointmentEmail } from './send-email/actions';
 import { getServerSession } from "next-auth"; 
-import { authOptions } from "@/app/api/auth/[...nextauth]/route"; 
+import { authOptions } from "@/lib/auth"; 
 
 // --- GET: Fetch Appointments ---
 export async function GET(request: NextRequest) {
