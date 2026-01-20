@@ -158,14 +158,14 @@ export default withAuth(
 export const config = {
   matcher: [
     // Protect API Routes
-    "/api/doctors/:path*",       
-    "/api/appointments/:path*",   
-    "/api/patients/:path*",       
-    "/api/hospitals/:path*",      
-    "/api/specializations/:path*",
-    "/api/illnesses/:path*",      
-    "/api/admin/:path*",
-    "/api/auth/change-password",
+    // "/api/doctors/:path*",       
+    // "/api/appointments/:path*",   
+    // "/api/patients/:path*",       
+    // "/api/hospitals/:path*",      
+    // "/api/specializations/:path*",
+    // "/api/illnesses/:path*",      
+    // "/api/admin/:path*",
+    // "/api/auth/change-password",
     
     // Protect Frontend Admin Pages
     "/admin/:path*" 
