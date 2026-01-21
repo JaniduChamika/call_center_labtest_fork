@@ -61,14 +61,7 @@ export default function PortalLanding() {
     try {
       console.log(`Navigating to ${role} login flow...`);
       
-      // UX: Show a loading/connecting toast before redirecting
-      toast.loading(`Securely connecting to ${role} Portal...`, {
-        style: {
-          borderRadius: '10px',
-          background: '#333',
-          color: '#fff',
-        },
-      });
+      // --- REMOVED THE LOADING TOAST HERE ---
 
       // 3. Update the path to match 'src/app/pages/login/page.tsx'
       router.push(`/pages/login?role=${role}`);
