@@ -5,3 +5,6 @@ export * from './shared';
 export * from './domain/doctors';
 export * from './domain/appointments';
 export * from './domain/users';
+
+// Export Payment Types
+export * from './payment';
