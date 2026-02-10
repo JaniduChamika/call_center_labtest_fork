@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
-import { Prisma } from '@/generated/prisma'; 
+import { Prisma } from '@/generated/prisma';
 import { generatePublicId } from '@/lib/utils';
 import { sendAppointmentEmail } from './send-email/actions';
-import { getServerSession } from "next-auth"; 
-import { authOptions } from "@/lib/auth"; 
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 // --- GET: Fetch Appointments ---
 export async function GET(request: NextRequest) {
@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
     // 2. Pagination & Filters
     const page = searchParams.get('page') ?? '1';
     const limit = searchParams.get('limit') ?? '10';
-    
+
     const appointmentPublicID = searchParams.get('id');
     const date = searchParams.get('date');
     const doctorId = searchParams.get('doctor');
@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     if (!session || !session.user) {
-        return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
     const body = await request.json();
@@ -126,76 +126,110 @@ export async function POST(request: NextRequest) {
     }
 
     const apptStartTime = new Date(appointment.start_time);
-    
+
     // Validate Date Object
     if (isNaN(apptStartTime.getTime())) {
-         return NextResponse.json({ message: 'Invalid start time provided' }, { status: 400 });
+      return NextResponse.json({ message: 'Invalid start time provided' }, { status: 400 });
     }
 
-    const apptEndTime = new Date(apptStartTime.getTime() + 10 * 60000); 
+    const apptEndTime = new Date(apptStartTime.getTime() + 10 * 60000);
 
     // 2. Transaction (Create/Update Patient -> Create Appointment)
     const createdAppointment = await prisma.$transaction(async (tx) => {
-        let patientIdToUse: bigint;
+      let patientIdToUse: bigint;
 
-        // SCENARIO A: Admin selected an existing patient ID manually
-        if (patient_id) {
-            patientIdToUse = BigInt(patient_id);
-        } 
-        // SCENARIO B: Guest/New Patient (The common flow)
-        else {
-             if (!patient_details?.nic) throw new Error("NIC required for patient");
-             
-             // ✅ FIX: Use 'upsert' to handle both New and Returning patients correctly
-             // 
-             const patient = await tx.patients.upsert({
-                 where: { 
-                     nic: patient_details.nic 
-                 },
-                 // IF EXISTS: Update their details (Fixes your "not inserting" issue)
-                 update: {
-                     name: patient_details.name,
-                     phone_number: patient_details.phone_number,
-                     email: patient_details.email || null,
-                 },
-                 // IF NEW: Create them
-                 create: {
-                     name: patient_details.name,
-                     phone_number: patient_details.phone_number,
-                     email: patient_details.email || null,
-                     nic: patient_details.nic
-                 }
-             });
-             patientIdToUse = patient.patient_id;
-        }
+      // SCENARIO A: Admin selected an existing patient ID manually
+      if (patient_id) {
+        patientIdToUse = BigInt(patient_id);
+      }
+      // SCENARIO B: Guest/New Patient (The common flow)
+      else {
+        if (!patient_details?.nic) throw new Error("NIC required for patient");
 
-        return await tx.appointments.create({
-            data: {
-                public_id: generatePublicId(),
-                patient_id: patientIdToUse,
-                doctor_id: BigInt(appointment.doctor_id),
-                hospital_id: BigInt(appointment.hospital_id),
-                start_time: apptStartTime,
-                end_time: apptEndTime,
-                status: 'pending_payment',
-                payment_link: `https://pay.gateway.lk/pay/${crypto.randomUUID()}`,
-            },
-            include: { patients: true }
+        // ✅ FIX: Use 'upsert' to handle both New and Returning patients correctly
+        // 
+        const patient = await tx.patients.upsert({
+          where: {
+            nic: patient_details.nic
+          },
+          // IF EXISTS: Update their details (Fixes your "not inserting" issue)
+          update: {
+            name: patient_details.name,
+            phone_number: patient_details.phone_number,
+            email: patient_details.email || null,
+          },
+          // IF NEW: Create them
+          create: {
+            name: patient_details.name,
+            phone_number: patient_details.phone_number,
+            email: patient_details.email || null,
+            nic: patient_details.nic
+          }
         });
+        patientIdToUse = patient.patient_id;
+      }
+
+
+
+
+
+
+
+
+
+
+
+
+
+      
+
+      const publicId = generatePublicId(); // Generate it first
+
+      return await tx.appointments.create({
+        data: {
+          public_id: publicId,
+          patient_id: patientIdToUse,
+          doctor_id: BigInt(appointment.doctor_id),
+          hospital_id: BigInt(appointment.hospital_id),
+          start_time: apptStartTime,
+          end_time: apptEndTime,
+          status: 'pending_payment',
+          // Now the variable is defined correctly
+          payment_link: `${process.env.NEXTAUTH_URL}/pages/invoice?id=${publicId}`,
+        },
+        include: { patients: true }
+      });
     });
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
     // 3. Send Email (Non-blocking)
     if (createdAppointment.public_id) {
-       try {
-         await sendAppointmentEmail(createdAppointment.public_id);
-       } catch (emailError) {
-         console.error("Email sending failed (Appointment still created):", emailError);
-       }
+      try {
+        await sendAppointmentEmail(createdAppointment.public_id);
+      } catch (emailError) {
+        console.error("Email sending failed (Appointment still created):", emailError);
+      }
     }
 
-    return NextResponse.json({ 
-        message: 'Appointment created successfully', 
-        appointment: createdAppointment 
+    return NextResponse.json({
+      message: 'Appointment created successfully',
+      appointment: createdAppointment
     }, { status: 201 });
 
   } catch (error: any) {
