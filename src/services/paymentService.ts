@@ -1,7 +1,4 @@
-import { apiClient } from './apiClient';
 import { PaymentRequest, PaymentResponse } from '@/types/payment';
-
-const PAYMENT_API_BASE = 'https://dpdlab1.slt.lk:8645/payment/api/v1';
 
 export const paymentService = {
   /**
@@ -11,7 +8,8 @@ export const paymentService = {
    */
   createPayment: async (paymentData: PaymentRequest): Promise<PaymentResponse> => {
     try {
-      const response = await fetch(`${PAYMENT_API_BASE}/payments`, {
+      // Call the Next.js API route instead of external API directly (to avoid CORS)
+      const response = await fetch('/api/payment', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -38,7 +36,7 @@ export const paymentService = {
    */
   getPaymentStatus: async (paymentId: string): Promise<PaymentResponse> => {
     try {
-      const response = await fetch(`${PAYMENT_API_BASE}/payments/${paymentId}`);
+      const response = await fetch(`/api/payment?paymentId=${paymentId}`);
       
       if (!response.ok) {
         throw new Error('Failed to fetch payment status');
