@@ -7,7 +7,7 @@ import Header from "@/components/common/Header";
 import { toast, Toaster } from "react-hot-toast";
 import {
   Search, User, Clock, Calendar, CheckCircle, MapPin,
-  ArrowRight, Filter, Stethoscope, Building2, AlertCircle, CheckCircle2, CreditCard
+  ArrowRight, Filter, Stethoscope, Building2, AlertCircle, CheckCircle2
 } from "lucide-react";
 
 // 2. Types & Services (Ensure these paths match your project)
@@ -132,17 +132,46 @@ export default function BookingPage() {
     fetchSlots();
   }, [selectedDate, selectedAppointmentHospital, selectedDoctor]);
 
-  // --- 8. Final Submission ---
-  const [bookingSuccess, setBookingSuccess] = useState<{
-    appointmentId: string;
-    patientName: string;
-    doctorName: string;
-    hospitalName: string;
-    date: string;
-    time: string;
-    amount: number;
-  } | null>(null);
+  // --- ADDED VALIDATION LOGIC ---
+  const validateStep3 = () => {
+    const { name, nic, phone_number, email } = patientDetails;
 
+    // 1. Basic Empty Check
+    if (!name || !nic || !phone_number || !email) {
+      toast.error("All fields are required to proceed.");
+      return false;
+    }
+
+    // 2. Sri Lankan NIC Validation
+    const oldNicRegex = /^[0-9]{9}[vVxX]$/;
+    const newNicRegex = /^[0-9]{12}$/;
+    if (!oldNicRegex.test(nic) && !newNicRegex.test(nic)) {
+      toast.error("Invalid Sri Lankan NIC format (e.g., 123456789V or 12 digits).");
+      return false;
+    }
+
+    // 3. Phone Number Validation (Sri Lanka 10 digits)
+    const phoneRegex = /^(?:0|94|\+94)?7(0|1|2|4|5|6|7|8)[0-9]{7}$/;
+    if (!phoneRegex.test(phone_number)) {
+      toast.error("Please enter a valid Sri Lankan mobile number.");
+      return false;
+    }
+
+    // 4. Email Validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      toast.error("Please enter a valid email address.");
+      return false;
+    }
+
+    return true;
+  };
+
+  const capitalize = (str: string) => {
+    return str.replace(/\b\w/g, (char) => char.toUpperCase());
+  };
+
+  // --- 8. Final Submission ---
   const handleConfirmBooking = async () => {
     // 1. Validation
     if (!patientDetails.name || !patientDetails.phone_number || !patientDetails.nic) {
@@ -179,20 +208,11 @@ export default function BookingPage() {
       // 3. API Call
       const response = await appointmentService.create(payload);
 
-      // 4. Success - Show success screen with payment link
-      toast.success(`Appointment Confirmed!`, { id: toastId, duration: 3000 });
+      // 4. Success
+      toast.success(`Appointment Confirmed! Ref: ${response.appointment.public_id}`, { id: toastId, duration: 5000 });
       
-      setBookingSuccess({
-        appointmentId: response.appointment.public_id,
-        patientName: patientDetails.name,
-        doctorName: selectedDoctor.name,
-        hospitalName: selectedAppointmentHospital.name,
-        date: typeof selectedDate === 'string' ? selectedDate : format(selectedDate, "MMM dd, yyyy"),
-        time: selectedTime,
-        amount: (selectedDoctor?.consultant_fee || 0) + (patientDetails.refundProtection ? 250 : 0),
-      });
-      
-      setCurrentStep(5); // Move to success screen
+      // Optional: Delay reload to show success message
+      setTimeout(() => window.location.reload(), 2500);
 
     } catch (error: any) {
       console.error("Booking Error:", error);
@@ -200,7 +220,6 @@ export default function BookingPage() {
       setIsSubmitting(false);
     }
   };
-
 
   // --- RENDER ---
   return (
@@ -378,22 +397,34 @@ export default function BookingPage() {
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                    <div className="space-y-2">
                      <label className="text-xs font-bold text-slate-500 uppercase">Patient Name</label>
-                     <input type="text" value={patientDetails.name} onChange={e => setPatientDetails({...patientDetails, name: e.target.value})}
+                     <input type="text" 
+                       value={patientDetails.name} 
+                       onChange={e => setPatientDetails({...patientDetails, name: capitalize(e.target.value)})}
+                       placeholder="e.g. John Doe"
                        className="w-full p-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"/>
                    </div>
                    <div className="space-y-2">
-                     <label className="text-xs font-bold text-slate-500 uppercase">NIC (Required)</label>
-                     <input type="text" value={patientDetails.nic} onChange={e => setPatientDetails({...patientDetails, nic: e.target.value})}
+                     <label className="text-xs font-bold text-slate-500 uppercase">NIC (Sri Lankan)</label>
+                     <input type="text" 
+                       value={patientDetails.nic} 
+                       onChange={e => setPatientDetails({...patientDetails, nic: e.target.value.toUpperCase()})}
+                       placeholder="e.g. 199012345678 or 123456789V"
                        className="w-full p-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"/>
                    </div>
                    <div className="space-y-2">
                      <label className="text-xs font-bold text-slate-500 uppercase">Phone Number</label>
-                     <input type="tel" value={patientDetails.phone_number} onChange={e => setPatientDetails({...patientDetails, phone_number: e.target.value})}
+                     <input type="tel" 
+                       value={patientDetails.phone_number} 
+                       onChange={e => setPatientDetails({...patientDetails, phone_number: e.target.value})}
+                       placeholder="07xxxxxxxx"
                        className="w-full p-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"/>
                    </div>
                    <div className="space-y-2">
-                     <label className="text-xs font-bold text-slate-500 uppercase">Email (Optional)</label>
-                     <input type="email" value={patientDetails.email} onChange={e => setPatientDetails({...patientDetails, email: e.target.value})}
+                     <label className="text-xs font-bold text-slate-500 uppercase">Email Address</label>
+                     <input type="email" 
+                       value={patientDetails.email} 
+                       onChange={e => setPatientDetails({...patientDetails, email: e.target.value})}
+                       placeholder="name@example.com"
                        className="w-full p-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"/>
                    </div>
                  </div>
@@ -410,7 +441,14 @@ export default function BookingPage() {
 
                  <div className="flex justify-between">
                    <button onClick={() => setCurrentStep(2)} className="text-slate-500 font-medium px-4">Back</button>
-                   <button onClick={() => setCurrentStep(4)} className="bg-blue-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-blue-700">Review & Confirm</button>
+                   <button 
+                    onClick={() => {
+                      if(validateStep3()) setCurrentStep(4);
+                    }} 
+                    className="bg-blue-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-blue-700"
+                   >
+                     Review & Confirm
+                   </button>
                  </div>
                </div>
             </div>
@@ -453,6 +491,7 @@ export default function BookingPage() {
                   <div className="bg-slate-50 p-4 rounded-xl space-y-2">
                      <div className="flex justify-between text-sm"><span className="text-slate-500">Patient</span><span className="font-medium">{patientDetails.name}</span></div>
                      <div className="flex justify-between text-sm"><span className="text-slate-500">NIC</span><span className="font-medium">{patientDetails.nic}</span></div>
+                     <div className="flex justify-between text-sm"><span className="text-slate-500">Contact</span><span className="font-medium">{patientDetails.phone_number}</span></div>
                   </div>
 
                   {/* Pricing */}
@@ -467,113 +506,6 @@ export default function BookingPage() {
                     <button onClick={() => setCurrentStep(3)} className="py-3 rounded-xl border border-slate-200 text-slate-600 font-medium hover:bg-slate-50">Edit</button>
                     <button onClick={handleConfirmBooking} disabled={isSubmitting} className="bg-emerald-500 text-white rounded-xl font-bold hover:bg-emerald-600 disabled:opacity-50 flex items-center justify-center gap-2">
                        {isSubmitting ? "Processing..." : <>Confirm <CheckCircle2 size={18}/></>}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* STEP 5: SUCCESS SCREEN WITH PAYMENT LINK */}
-          {currentStep === 5 && bookingSuccess && (
-            <div className="animate-in zoom-in-95 duration-500 max-w-2xl mx-auto">
-              <div className="bg-white rounded-3xl shadow-2xl overflow-hidden border border-slate-200">
-                {/* Success Header */}
-                <div className="bg-gradient-to-r from-emerald-500 to-green-600 p-8 text-center">
-                  <div className="w-20 h-20 bg-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
-                    <CheckCircle size={40} className="text-emerald-500" />
-                  </div>
-                  <h2 className="text-3xl font-bold text-white mb-2">Booking Confirmed!</h2>
-                  <p className="text-emerald-50">Your appointment has been successfully scheduled</p>
-                </div>
-
-                {/* Appointment Details */}
-                <div className="p-8 space-y-6">
-                  <div className="bg-slate-50 p-6 rounded-2xl space-y-4">
-                    <div className="flex justify-between">
-                      <span className="text-sm text-slate-500">Appointment ID</span>
-                      <span className="font-mono font-bold text-blue-600">{bookingSuccess.appointmentId}</span>
-                    </div>
-                    <div className="border-t border-slate-200 pt-4 space-y-2">
-                      <div className="flex justify-between text-sm">
-                        <span className="text-slate-500">Patient</span>
-                        <span className="font-medium">{bookingSuccess.patientName}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-slate-500">Doctor</span>
-                        <span className="font-medium">{bookingSuccess.doctorName}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-slate-500">Hospital</span>
-                        <span className="font-medium">{bookingSuccess.hospitalName}</span>
-                      </div>
-                      <div className="flex justify-between text-sm">
-                        <span className="text-slate-500">Date & Time</span>
-                        <span className="font-medium">{bookingSuccess.date} at {bookingSuccess.time}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Payment Section */}
-                  <div className="bg-blue-50 border-2 border-blue-200 rounded-2xl p-6">
-                    <div className="flex items-center gap-3 mb-4">
-                      <CreditCard className="text-blue-600" size={24} />
-                      <div>
-                        <h3 className="font-bold text-slate-800">Complete Payment</h3>
-                        <p className="text-sm text-slate-600">Amount: LKR {bookingSuccess.amount.toFixed(2)}</p>
-                      </div>
-                    </div>
-                    
-                    {/* Payment Link for Testing */}
-                    <div className="mb-4 p-3 bg-white rounded-lg border border-blue-200">
-                      <p className="text-xs font-bold text-slate-400 uppercase mb-2">Payment Link (For Testing)</p>
-                      <div className="flex items-center gap-2">
-                        <input 
-                          type="text" 
-                          readOnly 
-                          value={`${window.location.origin}/pages/invoice?id=${bookingSuccess.appointmentId}`}
-                          className="flex-1 text-sm bg-slate-50 px-3 py-2 rounded border border-slate-200 font-mono text-slate-600"
-                          onClick={(e) => e.currentTarget.select()}
-                        />
-                        <button
-                          onClick={() => {
-                            navigator.clipboard.writeText(`${window.location.origin}/pages/invoice?id=${bookingSuccess.appointmentId}`);
-                            toast.success('Link copied!');
-                          }}
-                          className="px-4 py-2 bg-blue-100 text-blue-600 rounded font-medium text-sm hover:bg-blue-200"
-                        >
-                          Copy
-                        </button>
-                      </div>
-                      <p className="text-xs text-slate-500 mt-2">
-                        This link will be sent to your email. For now, use it to test the payment flow.
-                      </p>
-                    </div>
-
-                    {/* Pay Now Button */}
-                    <button
-                      onClick={() => window.location.href = `/pages/invoice?id=${bookingSuccess.appointmentId}`}
-                      className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-6 rounded-xl shadow-lg transition-all flex items-center justify-center gap-3"
-                    >
-                      <CreditCard size={20} />
-                      <span>Pay Now</span>
-                      <ArrowRight size={20} />
-                    </button>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex gap-4">
-                    <button
-                      onClick={() => window.location.reload()}
-                      className="flex-1 py-3 border border-slate-200 text-slate-600 rounded-xl font-medium hover:bg-slate-50"
-                    >
-                      Book Another
-                    </button>
-                    <button
-                      onClick={() => window.print()}
-                      className="flex-1 py-3 bg-slate-100 text-slate-700 rounded-xl font-medium hover:bg-slate-200"
-                    >
-                      Print Details
                     </button>
                   </div>
                 </div>
