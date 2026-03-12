@@ -55,13 +55,12 @@ const AdminSidebar = () => {
   return (
     <div className="flex flex-col h-screen w-64 bg-white border-r border-gray-200 font-sans">
       {/* Logo Section */}
-      <div className="flex items-center gap-2 p-6">
-        <div className="w-8 h-8 flex items-center justify-center rounded-full border-2 border-green-500 text-green-600 font-bold italic">
-          e
-        </div>
-        <span className="text-blue-900 font-bold text-lg tracking-wide uppercase">
-          CHANNELLING
-        </span>
+      <div className="flex items-center justify-center p-3">
+        <img 
+          src="/logo.jpg" 
+          alt="E-Channelling Logo" 
+          className="h-15 w-auto object-contain"
+        />
       </div>
 
       {/* Navigation Links */}

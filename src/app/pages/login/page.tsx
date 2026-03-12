@@ -76,12 +76,11 @@ function LoginForm() {
         <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-2">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-full border-2 border-emerald-500 flex items-center justify-center">
-                <span className="text-emerald-500 font-bold text-lg italic">e</span>
-              </div>
-              <span className="text-blue-900 font-bold text-xl tracking-wide uppercase">
-                CHANNELLING
-              </span>
+              <img 
+                src="/logo.jpg" 
+                alt="E-Channelling Logo" 
+                className="h-18 w-auto object-contain"
+              />
             </div>
           </div>
           <p className="text-slate-500 text-sm">

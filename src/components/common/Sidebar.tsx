@@ -172,13 +172,12 @@ const Sidebar = () => {
   return (
     <div className="flex flex-col h-screen w-64 bg-white border-r border-gray-200">
       {/* Logo Section */}
-      <div className="flex items-center gap-2 p-6">
-        <div className="w-8 h-8 flex items-center justify-center rounded-full border-2 border-green-500 text-green-600 font-bold italic">
-          e
-        </div>
-        <span className="text-blue-800 font-bold text-lg tracking-wide">
-          CHANNELLING
-        </span>
+      <div className="flex items-center justify-center p-6">
+        <img 
+          src="/logo.jpg" 
+          alt="E-Channelling Logo" 
+          className="h-18 w-auto object-contain"
+        />
       </div>
 
       {/* Navigation Links */}

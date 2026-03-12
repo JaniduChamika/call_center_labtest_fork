@@ -93,12 +93,13 @@ export default function PortalLanding() {
         <div className="text-center mb-10 space-y-2">
           <div className="flex items-center justify-center mb-4">
             <div className="flex items-center gap-2">
-              <div className="w-10 h-10 rounded-full border-2 border-emerald-500 flex items-center justify-center">
-                <span className="text-emerald-500 font-bold text-xl italic">e</span>
-              </div>
-              <span className="text-blue-900 font-bold text-2xl tracking-wide uppercase">
-                {PORTAL_CONFIG.brandName}
-              </span>
+
+              <img 
+                src="/logo.jpg" 
+                alt={PORTAL_CONFIG.brandName} 
+                className="h-18 w-auto object-contain" 
+              />
+
             </div>
           </div>
           
