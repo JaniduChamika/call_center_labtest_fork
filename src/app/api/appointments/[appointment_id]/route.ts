@@ -177,3 +177,73 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
             return NextResponse.json({ message: "Internal Server Error" }, { status: 500 });
       }
 }
+
+
+
+// // app/api/appointments/[appointment_public_id]/route.ts
+// import { NextRequest, NextResponse } from 'next/server';
+// import { prisma } from '@/lib/prisma'; // Import Prisma client
+
+// // Fix for JSON.stringify failing on BigInt (for all IDs)
+// (BigInt.prototype as any).toJSON = function () {
+//       return this.toString();
+// };
+
+// // Define the type for the dynamic route parameter
+// type RouteParams = {
+//       params: Promise<{
+//             appointment_id: string;
+//       }>;
+// };
+
+// // --- GET A SINGLE APPOINTMENT BY ITS PUBLIC ID ---
+// export async function GET(
+//       request: NextRequest,
+//       { params }: { params: Promise<{ appointment_id: string }> }
+// ) {
+//       try {
+//             // 1. Await the params Promise to get the ID properly
+//             const resolvedParams = await params;
+//             const publicId = resolvedParams.appointment_id;
+
+//             if (!publicId) {
+//                   return NextResponse.json({ message: 'Public ID is required' }, { status: 400 });
+//             }
+
+//             // 2. Find the unique appointment
+//             const appointment = await prisma.appointments.findUnique({
+//                   where: {
+//                         // FIXED: Use the 'publicId' variable we just extracted
+//                         public_id: publicId, 
+//                   },
+//                   include: {
+//                         doctors: {
+//                               include: {
+//                                     specializations: true,
+//                               }
+//                         },
+//                         hospitals: true,
+                       
+//                         patients: true, 
+//                   },
+//             });
+
+//             // 3. If not found, return a 404
+//             if (!appointment) {
+//                   return NextResponse.json(
+//                         { message: 'Appointment not found' },
+//                         { status: 404 }
+//                   );
+//             }
+
+//             // 4. Return the successful response
+//             return NextResponse.json({
+//                   message: 'Appointment retrieved successfully',
+//                   appointment: appointment,
+//             });
+
+//       } catch (error) {
+//             console.error('GET_APPOINTMENT_BY_ID_ERROR:', error);
+//             return new NextResponse('Internal Server Error', { status: 500 });
+//       }
+// }

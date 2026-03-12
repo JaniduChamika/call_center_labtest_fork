@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useMemo, useEffect } from "react";
@@ -95,7 +96,6 @@ export default function BulkBookingPage() {
       } catch (err: any) {
         setError(err.message);
         console.error("Initialization Error:", err);
-        // Toast: System Data Error
         toast.error("Failed to load system data. Please refresh.");
       }
     };
@@ -150,7 +150,6 @@ export default function BulkBookingPage() {
     } catch (error) {
       console.error("Failed to fetch slots:", error);
       setTimeSlots([]);
-      // Toast: Slot Fetch Error
       toast.error("Could not retrieve available time slots.");
     } finally {
       setIsLoadingSlots(false);
@@ -165,38 +164,70 @@ export default function BulkBookingPage() {
   const toggleTimeSlot = (time: string) => {
     setSelectedTimes((prev) => {
       if (prev.includes(time)) {
-        return prev.filter((t) => t !== time); // Remove if exists
+        return prev.filter((t) => t !== time);
       } else {
-        return [...prev, time]; // Add if new
+        return [...prev, time];
       }
     });
   };
 
-  // --- 10. Booking Submission (Fixed for Bulk Logic) ---
-  const handleConfirmBooking = async () => {
-    // Validation
-    if (!patientDetails.name || !patientDetails.phone_number || !patientDetails.nic) {
-      // Toast: Form Validation
-      toast.error("Please fill in Name, NIC, and Phone Number.");
-      return;
+  // --- HELPER: Capitalize ---
+  const handleNameChange = (val: string) => {
+    const capitalized = val.replace(/\b\w/g, (l) => l.toUpperCase());
+    setPatientDetails({ ...patientDetails, name: capitalized });
+  };
+
+  // --- HELPER: Validation ---
+  const validatePatientInfo = () => {
+    const { name, nic, phone_number, email } = patientDetails;
+
+    if (!name || !nic || !phone_number || !email) {
+      toast.error("All patient fields are required.");
+      return false;
     }
+
+    // Sri Lankan NIC Validation (9 digits + V/X or 12 digits)
+    const nicRegex = /^(?:[0-9]{9}[vVxX]|[0-9]{12})$/;
+    if (!nicRegex.test(nic)) {
+      toast.error("Invalid Sri Lankan NIC format.");
+      return false;
+    }
+
+    // Phone Number Validation (Sri Lanka 10 digits)
+    const phoneRegex = /^(?:0|94|\+94)?7(0|1|2|4|5|6|7|8)[0-9]{7}$/;
+    if (!phoneRegex.test(phone_number)) {
+      toast.error("Invalid Sri Lankan phone number.");
+      return false;
+    }
+
+    // Email Validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      toast.error("Invalid email address.");
+      return false;
+    }
+
+    return true;
+  };
+
+  // --- 10. Booking Submission ---
+  const handleConfirmBooking = async () => {
+    if (!validatePatientInfo()) return;
+
     if (!baseAppointment.doctor_id || !baseAppointment.hospital_id || selectedTimes.length === 0) {
-      // Toast: Selection Validation
-      toast.error("Booking incomplete. Please select a doctor and at least one time slot.");
+      toast.error("Booking incomplete. Selection data missing.");
       return;
     }
 
     setIsSubmitting(true);
-    // Toast: Loading Start
-    const toastId = toast.loading(`Processing ${selectedTimes.length} appointments...`);
+    const toastId = toast.loading(`Processing ${selectedTimes.length} appointments for ${patientDetails.name}...`);
 
     try {
-      // 1. Separate the first slot from the others
       const [firstSlot, ...remainingSlots] = selectedTimes;
 
-      // 2. Create the FIRST appointment (This creates the patient in the DB)
+      // 1. Create the FIRST appointment to get/register the patient
       const firstPayload: CreateAppointmentPayload = {
-        patient_id: null, // Null tells backend to create a NEW patient
+        patient_id: null, 
         patient_details: patientDetails,
         appointment: {
           doctor_id: baseAppointment.doctor_id,
@@ -208,17 +239,14 @@ export default function BulkBookingPage() {
       const firstResponse = await appointmentService.create(firstPayload);
       const tickets = [firstResponse.appointment.public_id];
       
-      const newPatientId = firstResponse.patient?.patient_id || firstResponse.appointment?.patient_id;
+      // Get the ID of the person we just created/identified
+      const existingPatientId = firstResponse.patient?.patient_id || firstResponse.appointment?.patient_id;
 
-      if (!newPatientId && remainingSlots.length > 0) {
-        throw new Error("Could not retrieve Patient ID after first booking. Cannot complete bulk booking.");
-      }
-
-      // 3. Create REMAINING appointments using the EXISTING patient ID
-      if (remainingSlots.length > 0) {
+      // 2. Create REMAINING appointments using the SAME patient ID
+      if (remainingSlots.length > 0 && existingPatientId) {
         const remainingPromises = remainingSlots.map((time) => {
           const payload: CreateAppointmentPayload = {
-            patient_id: newPatientId, 
+            patient_id: existingPatientId, 
             patient_details: patientDetails, 
             appointment: {
               doctor_id: baseAppointment.doctor_id,
@@ -233,24 +261,18 @@ export default function BulkBookingPage() {
         remainingResponses.forEach(r => tickets.push(r.appointment.public_id));
       }
       
-      // Toast: Success (Updates the loading toast)
       toast.success(
-        `Success! ${tickets.length} appointments booked.`, 
+        `Success! ${tickets.length} slots booked for ${patientDetails.name}.`, 
         { id: toastId, duration: 4000 }
       );
       
-      // Delay reload slightly to let user read the toast
       setTimeout(() => {
         window.location.reload(); 
       }, 2000);
 
     } catch (error: any) {
       console.error("Booking Error:", error);
-      // Toast: Error (Updates the loading toast)
-      toast.error(
-        error.message || "Failed to complete bulk booking.", 
-        { id: toastId }
-      );
+      toast.error(error.message || "Failed to complete bulk booking.", { id: toastId });
     } finally {
       setIsSubmitting(false);
     }
@@ -259,7 +281,6 @@ export default function BulkBookingPage() {
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden">
         
-      {/* Toast Container Configured here */}
       <Toaster position="top-right" reverseOrder={false} />
 
       <Sidebar />
@@ -309,7 +330,6 @@ export default function BulkBookingPage() {
 
         <div className="p-4 md:p-8 pb-20">
           
-          {/* --- Step 1: Find Doctor --- */}
           {currentStep === 1 && (
             <div className="max-w-4xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div className="text-center mb-10">
@@ -317,7 +337,6 @@ export default function BulkBookingPage() {
                 <p className="text-slate-500">Find a doctor to schedule multiple sessions.</p>
               </div>
 
-              {/* Filters Section */}
               <div className="bg-white p-6 rounded-2xl shadow-md border border-slate-100 mb-8">
                   <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                   <div className="md:col-span-4 relative group">
@@ -368,10 +387,9 @@ export default function BulkBookingPage() {
                       <span>{filteredDoctors.length} Found</span>
                     </div>
                   </div>
-                 </div>
+                  </div>
               </div>
 
-              {/* Doctor List */}
               <div className="space-y-4">
                 {filteredDoctors.map((doctor) => (
                   <div key={doctor.doctor_id} className="group bg-white p-5 rounded-2xl shadow-sm border border-slate-100 hover:shadow-md hover:border-indigo-100 transition-all flex flex-col md:flex-row items-center justify-between gap-6">
@@ -409,7 +427,6 @@ export default function BulkBookingPage() {
             </div>
           )}
 
-          {/* --- Step 2: Choose Multiple Times --- */}
           {currentStep === 2 && (
             <div className="max-w-3xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
               <div className="text-center mb-8">
@@ -417,7 +434,6 @@ export default function BulkBookingPage() {
                 <p className="text-slate-500">You can select multiple time slots for this date.</p>
               </div>
 
-              {/* Doctor Summary Header */}
                <div className="bg-gradient-to-r from-indigo-50 to-purple-50 p-4 rounded-xl flex items-center gap-4 mb-8 border border-indigo-100">
                   <div className="w-12 h-12 bg-indigo-600 rounded-full flex items-center justify-center text-white font-bold shadow-md">
                       {selectedDoctor?.name.split(' ').map(n => n[0]).join('').substring(0,2).toUpperCase()}
@@ -496,7 +512,6 @@ export default function BulkBookingPage() {
             </div>
           )}
 
-          {/* --- Step 3: Patient Info --- */}
           {currentStep === 3 && (
             <div className="max-w-3xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
                <div className="text-center mb-8">
@@ -504,7 +519,6 @@ export default function BulkBookingPage() {
               </div>
               
               <div className="bg-white p-8 rounded-2xl shadow-md border border-slate-100">
-                {/* Cost Summary */}
                 <div className="bg-slate-50 rounded-xl p-5 mb-8 border border-slate-200">
                    <h4 className="font-bold text-slate-700 mb-4 border-b pb-2">Billing Summary</h4>
                    
@@ -537,15 +551,14 @@ export default function BulkBookingPage() {
                   </div>
                 </div>
 
-                {/* Form Fields (UPDATED WITH PLACEHOLDERS) */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <label className="text-xs font-bold text-slate-500 uppercase">Patient Name </label>
                     <input 
                       type="text" 
-                      placeholder="Name"
+                      placeholder="e.g. John Doe"
                       value={patientDetails.name} 
-                      onChange={(e) => setPatientDetails({ ...patientDetails, name: e.target.value })} 
+                      onChange={(e) => handleNameChange(e.target.value)} 
                       className="w-full p-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none placeholder:text-slate-300" 
                     />
                   </div>
@@ -553,9 +566,9 @@ export default function BulkBookingPage() {
                     <label className="text-xs font-bold text-slate-500 uppercase">NIC Number </label>
                     <input 
                       type="text" 
-                      placeholder=" 200012345678"
+                      placeholder="e.g. 199012345678"
                       value={patientDetails.nic} 
-                      onChange={(e) => setPatientDetails({ ...patientDetails, nic: e.target.value })} 
+                      onChange={(e) => setPatientDetails({ ...patientDetails, nic: e.target.value.toUpperCase() })} 
                       className="w-full p-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none placeholder:text-slate-300" 
                     />
                   </div>
@@ -563,17 +576,17 @@ export default function BulkBookingPage() {
                     <label className="text-xs font-bold text-slate-500 uppercase">Mobile Number </label>
                     <input 
                       type="tel" 
-                      placeholder=" 0771234567"
+                      placeholder="e.g. 0771234567"
                       value={patientDetails.phone_number} 
                       onChange={(e) => setPatientDetails({ ...patientDetails, phone_number: e.target.value })} 
                       className="w-full p-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none placeholder:text-slate-300" 
                     />
                   </div>
                    <div className="space-y-2">
-                    <label className="text-xs font-bold text-slate-500 uppercase">Email (Optional)</label>
+                    <label className="text-xs font-bold text-slate-500 uppercase">Email Address</label>
                     <input 
                       type="email" 
-                      placeholder=" user@example.com"
+                      placeholder="e.g. user@gmail.com"
                       value={patientDetails.email} 
                       onChange={(e) => setPatientDetails({ ...patientDetails, email: e.target.value })} 
                       className="w-full p-3 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none placeholder:text-slate-300" 
@@ -583,7 +596,12 @@ export default function BulkBookingPage() {
 
                 <div className="flex gap-4 mt-10">
                   <button onClick={() => setCurrentStep(2)} className="px-6 py-3 rounded-xl font-medium text-slate-600 hover:bg-slate-100 transition">Back</button>
-                  <button onClick={() => setCurrentStep(4)} className="flex-1 bg-indigo-900 hover:bg-indigo-800 text-white font-bold py-3 rounded-xl shadow-lg flex items-center justify-center gap-2">
+                  <button 
+                    onClick={() => {
+                      if (validatePatientInfo()) setCurrentStep(4);
+                    }} 
+                    className="flex-1 bg-indigo-900 hover:bg-indigo-800 text-white font-bold py-3 rounded-xl shadow-lg flex items-center justify-center gap-2"
+                  >
                     Review {selectedTimes.length} Bookings
                   </button>
                 </div>
@@ -591,7 +609,6 @@ export default function BulkBookingPage() {
             </div>
           )}
 
-          {/* --- Step 4: Confirm --- */}
           {currentStep === 4 && (
             <div className="max-w-2xl mx-auto animate-in fade-in zoom-in-95 duration-500">
               <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-100">
@@ -601,7 +618,6 @@ export default function BulkBookingPage() {
                 </div>
 
                 <div className="p-8">
-                  {/* Doctor Info */}
                   <div className="flex items-start gap-4 pb-6 border-b border-dashed border-slate-200">
                     <div className="w-14 h-14 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-bold text-lg">
                       {selectedDoctor?.name.split(' ').map(n => n[0]).join('').substring(0,2).toUpperCase()}
@@ -615,7 +631,6 @@ export default function BulkBookingPage() {
                     </div>
                   </div>
 
-                  {/* Selected Slots List */}
                   <div className="py-6 border-b border-dashed border-slate-200">
                     <div className="flex justify-between items-center mb-3">
                          <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Date</p>
@@ -631,14 +646,13 @@ export default function BulkBookingPage() {
                     </div>
                   </div>
 
-                   {/* Patient Summary */}
                   <div className="py-6 border-b border-dashed border-slate-200 space-y-3">
                     <p className="text-xs text-slate-400 font-bold uppercase tracking-wider">Patient Information</p>
                     <div className="flex justify-between text-sm"><span className="text-slate-500">Name</span><span className="font-medium text-slate-800">{patientDetails.name}</span></div>
                     <div className="flex justify-between text-sm"><span className="text-slate-500">NIC</span><span className="font-medium text-slate-800">{patientDetails.nic}</span></div>
+                    <div className="flex justify-between text-sm"><span className="text-slate-500">Contact</span><span className="font-medium text-slate-800">{patientDetails.phone_number}</span></div>
                   </div>
 
-                  {/* Final Total */}
                   <div className="pt-6">
                     <div className="flex justify-between items-center mt-4 bg-slate-50 p-4 rounded-xl">
                       <span className="font-bold text-slate-700">Total Amount ({selectedTimes.length} slots)</span>
